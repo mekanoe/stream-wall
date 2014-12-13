@@ -1,0 +1,228 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PSW</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/3.2.1/masonry.pkgd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.7.0/underscore-min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.1/normalize.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
+<style>
+body {
+    background: #a8c;
+    background: radial-gradient(ellipse at bottom, #a8c 0% ,#2e00ae 100%);
+    background-position: fixed;
+
+}
+
+.container, .jumbotron, .footer {
+    width: 85vw;
+    margin: 0 auto;
+    margin-top: 10px;
+}
+
+.jumbotron {
+    display: none;
+}
+
+.stream {
+    width: 175px;
+    height: 100px;
+    background-size: contain;
+    margin-bottom: 5px;
+    box-sizing: border-box;
+    box-shadow: 0 0 3px #000109;
+    padding: 5px;
+}
+
+.stream--shim {
+    background-color: rgba(0,0,0,0.65);
+    display: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    content: " ";
+}
+
+.stream--info {
+    font-size: small;
+    display: none;
+    color: #efefef;
+    position: absolute;
+}
+
+.stream:hover .stream--info, .stream:hover .stream--shim {
+    display: block;
+}
+
+.stream--size-2 {
+    width: 355px;
+    height: 200px;
+}
+
+.stream--size-2 .user--avatar {
+    width: 50px;
+    height: 50px;
+}
+
+.stream--size-3 {
+    width: 535px;
+    height: 305px;
+}
+
+.stream--size-3 .user--avatar {
+    width: 75px;
+    height: 75px;
+}
+
+.user--username {
+    font-weight: bold;
+    line-height: 1.4;
+    font-size 1.8em;
+}
+
+.user--avatar {
+    height: 25px;
+    width: 25px;
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    background-size: contain;
+    border-radius: 100%;
+    box-shadow: 0 0 2px #00c1c9;
+}
+
+.meta--info {
+    background-color: #446;
+    color: #efefef;
+    height: 100px;
+}
+
+a {
+    color: #00c1c9;
+    text-decoration: none;
+}
+
+</style>
+<div class="jumbotron"></div>
+<div class="container">
+</div>
+
+<script type="text/template" id="template--stream">
+    <div class="stream">
+        <div class="stream--shim"></div>
+        <a href="#" class="user--avatar"></a>
+        <div class="stream--info">
+            <div class="info--user">
+                <div class="user--username"></div>
+            </div>
+            <div class="info--game">
+                <div class="game--title"></div>
+            </div>
+            <div class="info--viewers">
+                <i class="fa fa-eye"></i>
+                <span class="viewers--count"></span>
+            </div>
+        </div>
+    </div>
+</script>
+
+<script>
+
+var humanize = function(num) {
+    var str = num.toString().split('.');
+    
+    if (str[0].length >= 5) {
+        str[0] = str[0].replace(/(\d)(?=(\d{3})+$)/g, '$1,');
+    }
+
+    if (str[1] && str[1].length >= 5) {
+        str[1] = str[1].replace(/(\d{3})/g, '$1 ');
+    }
+
+    return str.join('.');
+}
+
+App = {
+    container: $('.container').masonry({
+        itemSelector: '.stream',
+        columnWidth: 175,
+        gutter: 5,
+        //isFitWidth: true
+    }),
+    renderStream: function(stream) {
+        if(stream.provider !== 'twitch') return;
+
+        var el = $(""+$('#template--stream').html());
+
+        
+        el.addClass('stream--size-'+stream.size);
+        el.attr('data-channel', stream.channel);
+
+        el.css({
+            backgroundImage: "url("+stream.thumbnail+")"
+        });
+
+        el.find('.user--avatar').css({
+            backgroundImage: "url("+stream.user.avatar.cached+")"
+        }).attr('href', 'https://player.me'+stream.user.url);
+
+        el.find('.user--username').html(stream.user.username);
+        el.find('.game--title').html(stream.game_name);
+        el.find('.viewers--count').html(stream.data.viewers);
+
+        App.container.append(el);
+        App.container.masonry('appended', el).fadeIn();
+    },
+
+    processStream: function(i, dex, list) {
+        if(i.provider !== 'twitch') return;
+        // top 10% of streams get 3x size, top 35% gets 2x.
+        var len = list.length;
+        var _10 = Math.floor(len*0.05);
+        var _35 = Math.floor(len*0.25);
+
+        if(dex < _10) {
+            i.size = 3;
+        } else if(dex < _35) {
+            i.size = 2;
+        } else {
+            i.size = 1;
+        }
+
+        i.data.viewers = humanize(i.data.viewers);
+        i.thumbnail = i.thumbnail.replace('241x136', '640x360');
+        i.user.avatar.cached = 'https:'+i.user.avatar.cached;
+    }
+};
+
+$(function(){
+    $.getJSON('https://player.me/api/v1/streaming?all=true&callback=?')
+     .then(function(data){
+        if(data.success) {
+            _(data.results).chain()
+             .sortBy(function(item){ return item.data.viewers; }).reverse()
+             .each(function(item, index, list){ App.processStream(item, index, list); })
+             .shuffle()
+             .each(function(stream){ App.renderStream(stream); });
+
+            $('.stream').on('click', function(event){
+                App.showStream(event.target);
+            });
+
+            var footer = $('<div class="stream stream--size-2 meta--info">Live data provided by <a href="https://player.me">Player.me</a>.<br>Made with ♥ by <a href="https://player.me/katie">Katie</a>.<br>Source code at <a href="https://github.com/kayteh/stream-wall">GitHub</a>.<a href="https://player.me/katie" class="user--avatar"></a></div>');
+
+
+            $.getJSON('https://player.me/api/v1/users/katie?username=true&callback=?').then(function(data){
+                console.log(data);
+                footer.find('.user--avatar').css({backgroundImage: 'url(https:'+data.results.avatar.cached+')'});
+                App.container.append(footer);
+                App.container.masonry('appended', footer).fadeIn();
+            })
+
+
+        }
+     });
+});
+</script>
