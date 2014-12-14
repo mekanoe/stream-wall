@@ -366,6 +366,7 @@ App = {
         var check = function(){
             if(ready[0] && ready[1]) {
                 App.jumbotron.fadeIn();
+                $('body').scrollTop();
             }
         };
         stream.on('load', function(){ ready[0] = 1; check(); });
