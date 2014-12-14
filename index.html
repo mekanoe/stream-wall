@@ -417,13 +417,14 @@ App = {
                         $.getJSON('https://player.me/api/v1/users/katie?username=true&callback=?')
                          .then(function(data){
                             footer.find('.user--avatar').css({backgroundImage: 'url(https:'+data.results.avatar.cached+')'});
-                            window._footer = footer;
+                            window._footer = data.results.avatar.cached;
                             App.container.append(footer);
                             App.container.masonry('appended', footer).fadeIn();
                         });
                     } else {
-                        App.container.append(window._footer);
-                        App.container.masonry('appended', window._footer).fadeIn();
+                        footer.find('.user--avatar').css({backgroundImage: 'url(https:'+window._footer+')'});
+                        App.container.append(footer);
+                        App.container.masonry('appended', footer).fadeIn();
                     }
                 }
                 App.loading.fadeOut();
