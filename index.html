@@ -1,17 +1,72 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>PSW</title>
+<title>Player Stream Wall</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/3.2.1/masonry.pkgd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.7.0/underscore-min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.1/normalize.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.2.0/css/font-awesome.min.css">
 <style>
+.loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background: rgba(#FFF, 0.8);
+    text-align: center;
+}
+
+.loading.no-bg {
+    background: none;
+}  
+
+.spinner {
+    position: absolute;
+    top: calc(50% - 20px);
+    left: calc(50% - 20px);
+    width: 40px;
+    height: 40px;
+}
+
+.double-bounce1, .double-bounce2 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: #00c1c9;
+    opacity: 0.6;
+
+    -webkit-animation: bounce 2.0s infinite ease-in-out;
+    animation: bounce 2.0s infinite ease-in-out;
+}
+
+.double-bounce2 {
+    -webkit-animation-delay: -1.0s;
+    animation-delay: -1.0s;
+}
+
+@-webkit-keyframes bounce {
+    0%, 100% { -webkit-transform: scale(0.0); }
+    50% { -webkit-transform: scale(1.0); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: scale(0.0); }
+    50% { transform: scale(1.0); }
+}
+
+
 body {
     background: #a8c;
     background: radial-gradient(ellipse at bottom, #a8c 0% ,#2e00ae 100%);
     background-position: fixed;
-
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    overflow-y: scroll;
+    min-height: 100vh;
 }
 
 .container, .jumbotron, .footer {
@@ -22,16 +77,22 @@ body {
 
 .jumbotron {
     display: none;
+    /*text-align: center;*/
 }
 
 .stream {
     width: 175px;
     height: 100px;
-    background-size: contain;
+    background-size: cover;
+    background-position: top center;
     margin-bottom: 5px;
     box-sizing: border-box;
     box-shadow: 0 0 3px #000109;
     padding: 5px;
+}
+
+.stream--open {
+    box-shadow: 0 0 3px #ff0088;
 }
 
 .stream--shim {
@@ -42,7 +103,6 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    content: " ";
 }
 
 .stream--info {
@@ -52,13 +112,14 @@ body {
     position: absolute;
 }
 
-.stream:hover .stream--info, .stream:hover .stream--shim {
+.stream:hover .stream--info, .stream:hover .stream--shim
+.stream--open .stream--info, .stream--open .stream--shim {
     display: block;
 }
 
 .stream--size-2 {
     width: 355px;
-    height: 200px;
+    height: 205px;
 }
 
 .stream--size-2 .user--avatar {
@@ -68,7 +129,7 @@ body {
 
 .stream--size-3 {
     width: 535px;
-    height: 305px;
+    height: 310px;
 }
 
 .stream--size-3 .user--avatar {
@@ -99,6 +160,71 @@ body {
     height: 100px;
 }
 
+.live {
+    display: flex;
+    align-items: stretch;
+    margin: 0 auto;
+    background-color: #303139;
+    box-shadow: 0 0 2px #000109;
+}
+
+.live--chat,
+.live--info {
+    height: 585px;
+    min-width: 325px;
+    flex-shrink: 1;
+    position: relative;
+}
+
+.live--stream {
+    flex-grow: 2;
+    height: 585px;
+    box-shadow: 0 0 2px #000c01;
+}
+
+.live--info {
+    padding: 10px;
+    color: #efefef;
+    box-sizing: border-box;
+    max-width: 20%;
+    overflow-y: scroll;
+    line-height: 16px;
+    font-size: 13px;
+}
+
+.live .user--avatar {
+    position: static;
+    width: 75px;
+    height: 75px;
+    display: inline-block;
+}
+.live .user--username--big {
+    position: relative;
+    left: 15px;
+    bottom: 1.9em;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.info--title {
+    font-weight: bold;
+    padding: 15px;
+}
+
+.info--title:before {
+    content: " ";
+    width: 0.75em;
+    height: 0.75em;
+    margin-right: 0.15em;
+    background-color: red;
+    border-radius: 100%;
+    display: inline-block;
+}
+
+.live iframe {
+    border: 0;
+}
+
 a {
     color: #00c1c9;
     text-decoration: none;
@@ -107,6 +233,13 @@ a {
 </style>
 <div class="jumbotron"></div>
 <div class="container">
+</div>
+<div class="loading no-bg">
+    <p id="error" style="display:none;">An error occured.</p>
+    <div class="spinner">
+          <div class="double-bounce1"></div>
+          <div class="double-bounce2"></div>
+    </div>
 </div>
 
 <script type="text/template" id="template--stream">
@@ -128,6 +261,29 @@ a {
     </div>
 </script>
 
+<script type="text/template" id="template--live">
+    <div class="live">
+        <iframe class="live--chat"></iframe>
+        <iframe class="live--stream"></iframe>
+        <div class="live--info">
+            <div class="info--user">
+                <a class="user--avatar"></a>
+                <a class="user--username--big">weallplaycast</a>
+                <div class="info--title"></div>
+                <div class="user--description">Some Words</div>
+            </div>
+        </div>
+    </div>
+</script>
+<script type="text/template" id="template--footer">
+    <div class="stream stream--size-2 meta--info">
+        Live data provided by <a href="https://player.me">Player.me</a>.<br>
+        Made with ♥ by <a href="https://player.me/katie">Katie</a>.<br>
+        Source code at <a href="https://github.com/kayteh/stream-wall">GitHub</a>.<br>
+        <a href="javascript:App.init()">Reload</a> the streams.
+        <a href="https://player.me/katie" class="user--avatar"></a></div>
+</script>
+
 <script>
 
 var humanize = function(num) {
@@ -144,25 +300,30 @@ var humanize = function(num) {
     return str.join('.');
 }
 
+var _masonryOpts = {
+    itemSelector: '.stream',
+    columnWidth: 175,
+    gutter: 5,
+    isFitWidth: true
+}
+
 App = {
-    container: $('.container').masonry({
-        itemSelector: '.stream',
-        columnWidth: 175,
-        gutter: 5,
-        //isFitWidth: true
-    }),
+    container: $('.container').masonry(_masonryOpts),
+    jumbotron: $('.jumbotron'),
+    loading: $('.loading'),
     renderStream: function(stream) {
         if(stream.provider !== 'twitch') return;
 
         var el = $(""+$('#template--stream').html());
 
         
-        el.addClass('stream--size-'+stream.size);
-        el.attr('data-channel', stream.channel);
-
-        el.css({
+        el.addClass('stream--size-'+stream.size)
+          .attr('data-channel', stream.channel)
+          .attr('data-title', stream.status)
+          .attr('data-user-info', JSON.stringify(stream.user))
+          .css({
             backgroundImage: "url("+stream.thumbnail+")"
-        });
+          });
 
         el.find('.user--avatar').css({
             backgroundImage: "url("+stream.user.avatar.cached+")"
@@ -174,6 +335,41 @@ App = {
 
         App.container.append(el);
         App.container.masonry('appended', el).fadeIn();
+    },
+
+    showStream: function(el) {
+        el = $(el);
+        var channel = el.attr('data-channel');
+        var userData = JSON.parse(el.attr('data-user-info'));
+        var title = el.attr('data-title');
+        $('.stream--open').removeClass('stream--open');
+        el.addClass('stream--open');
+
+        var out = $(""+$('#template--live').html());
+        var stream = out.find('.live--stream')
+                        .attr('src', 'https://player.me/embed/twitch/'+channel);
+        var chat = out.find('.live--chat')
+                      .attr('src', 'http://www.nightdev.com/hosted/obschat/?channel='+channel);
+        var info = out.find('.live--info');
+
+        info.find('.user--avatar').css({
+            backgroundImage: 'url('+userData.avatar.cached+')'
+        });
+        info.find('.user--username--big').html(userData.username);
+        info.find('.user--avatar, .user--username--big')
+            .attr('href', 'https://player.me'+userData.url);
+        info.find('.user--description').html(userData.description_html);
+        info.find('.info--title').html(title);
+
+        App.jumbotron.html(out);
+        var ready = [0,0];
+        var check = function(){
+            if(ready[0] && ready[1]) {
+                App.jumbotron.fadeIn();
+            }
+        };
+        stream.on('load', function(){ ready[0] = 1; check(); });
+        chat.on('load', function(){ ready[1] = 1; check(); });
     },
 
     processStream: function(i, dex, list) {
@@ -194,35 +390,49 @@ App = {
         i.data.viewers = humanize(i.data.viewers);
         i.thumbnail = i.thumbnail.replace('241x136', '640x360');
         i.user.avatar.cached = 'https:'+i.user.avatar.cached;
+    },
+
+    init: function() {
+        App.loading.fadeIn();
+        App.container.find('.stream').fadeOut(500, function(){
+            App.container.html('').masonry('destroy').masonry(_masonryOpts);
+        });
+            $.getJSON('https://player.me/api/v1/streaming?all=true&callback=?')
+             .then(function(data){
+                if(data.success) {
+                    _(data.results).chain()
+                     .sortBy(function(item){ return item.data.viewers; }).reverse()
+                     .each(function(item, index, list){ App.processStream(item, index, list); })
+                     .shuffle()
+                     .each(function(stream){ App.renderStream(stream); });
+
+                    $('.stream').on('click', function(event){
+                        App.showStream(this);
+                    });
+
+                    var footer = $(""+$('#template--footer').html());
+
+                    if(window._footer === undefined) {
+                        $.getJSON('https://player.me/api/v1/users/katie?username=true&callback=?')
+                         .then(function(data){
+                            footer.find('.user--avatar').css({backgroundImage: 'url(https:'+data.results.avatar.cached+')'});
+                            window._footer = footer;
+                            App.container.append(footer);
+                            App.container.masonry('appended', footer).fadeIn();
+                        });
+                    } else {
+                        App.container.append(window._footer);
+                        App.container.masonry('appended', window._footer).fadeIn();
+                    }
+                }
+                App.loading.fadeOut();
+                $('body').scrollTop();
+            });
     }
 };
 
 $(function(){
-    $.getJSON('https://player.me/api/v1/streaming?all=true&callback=?')
-     .then(function(data){
-        if(data.success) {
-            _(data.results).chain()
-             .sortBy(function(item){ return item.data.viewers; }).reverse()
-             .each(function(item, index, list){ App.processStream(item, index, list); })
-             .shuffle()
-             .each(function(stream){ App.renderStream(stream); });
+    App.init();
 
-            $('.stream').on('click', function(event){
-                App.showStream(event.target);
-            });
-
-            var footer = $('<div class="stream stream--size-2 meta--info">Live data provided by <a href="https://player.me">Player.me</a>.<br>Made with ♥ by <a href="https://player.me/katie">Katie</a>.<br>Source code at <a href="https://github.com/kayteh/stream-wall">GitHub</a>.<a href="https://player.me/katie" class="user--avatar"></a></div>');
-
-
-            $.getJSON('https://player.me/api/v1/users/katie?username=true&callback=?').then(function(data){
-                console.log(data);
-                footer.find('.user--avatar').css({backgroundImage: 'url(https:'+data.results.avatar.cached+')'});
-                App.container.append(footer);
-                App.container.masonry('appended', footer).fadeIn();
-            })
-
-
-        }
-     });
 });
 </script>
