@@ -325,6 +325,10 @@ App = {
             backgroundImage: "url("+stream.thumbnail+")"
           });
 
+        if(stream.channel === $('.live').attr('data-channel')) {
+            el.addClass('stream--open');
+        }
+
         el.find('.user--avatar').css({
             backgroundImage: "url("+stream.user.avatar.cached+")"
         }).attr('href', 'https://player.me'+stream.user.url);
@@ -351,6 +355,8 @@ App = {
         var chat = out.find('.live--chat')
                       .attr('src', 'http://www.nightdev.com/hosted/obschat/?channel='+channel);
         var info = out.find('.live--info');
+
+        out.attr('data-channel', channel);
 
         info.find('.user--avatar').css({
             backgroundImage: 'url('+userData.avatar.cached+')'
@@ -395,6 +401,7 @@ App = {
 
     init: function() {
         App.loading.fadeIn();
+        App.container.fadeOut(500).masonry('remove', window._footer);
         App.container.find('.stream').fadeOut(500, function(){
             App.container.html('').masonry('destroy').masonry(_masonryOpts);
         });
