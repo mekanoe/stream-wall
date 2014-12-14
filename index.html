@@ -325,7 +325,7 @@ App = {
             backgroundImage: "url("+stream.thumbnail+")"
           });
 
-        if(stream.channel === $('.live').attr('data-channel')) {
+        if(stream.channel === window.current) {
             el.addClass('stream--open');
         }
 
@@ -356,7 +356,7 @@ App = {
                       .attr('src', 'http://www.nightdev.com/hosted/obschat/?channel='+channel);
         var info = out.find('.live--info');
 
-        out.attr('data-channel', channel);
+        window.current = channel;
 
         info.find('.user--avatar').css({
             backgroundImage: 'url('+userData.avatar.cached+')'
